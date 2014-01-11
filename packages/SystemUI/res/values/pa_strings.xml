@@ -81,4 +81,6 @@
     <string name="halo_tutorial1">This is HALO</string>
     <string name="halo_tutorial2">Move me: double tap &amp; drag</string>
     <string name="halo_tutorial3">Browse tasks: Horizontal drag</string>
+    <!-- Notifications: Allow hiding notification icons -->
+    <string name="status_bar_notification_hide_icon_packages">Hide app\'s notification icon(s)</string>
 </resources>
