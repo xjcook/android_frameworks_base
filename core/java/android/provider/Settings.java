@@ -2615,6 +2615,12 @@ public final class Settings {
         public static final String HALO_SIZE = "halo_size";
 
         /**
+         * HALO color, default is 0xff33b5e5 (normal)
+         * @hide
+         */
+        public static final String HALO_COLOR = "halo_color";
+
+        /**
          * HALO ninja?, should default to 0 (no, do not disappear when empty)
          * @hide
          */
