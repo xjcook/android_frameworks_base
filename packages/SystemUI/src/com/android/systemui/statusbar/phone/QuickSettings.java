@@ -60,6 +60,7 @@ import android.telephony.TelephonyManager;
 import android.provider.Settings.SettingNotFoundException;
 import android.util.Log;
 import android.util.Pair;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -68,6 +69,8 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.systemui.BatteryMeterView;
+import com.android.systemui.BatteryCircleMeterView;
 import com.android.internal.app.MediaRouteDialogPresenter;
 import com.android.internal.util.paranoid.LightbulbConstants;
 import com.android.systemui.R;
@@ -83,6 +86,7 @@ import com.android.systemui.statusbar.policy.LocationController;
 import com.android.systemui.statusbar.policy.NetworkController;
 import com.android.systemui.statusbar.policy.RotationLockController;
 
+import java.lang.Throwable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -143,7 +147,9 @@ class QuickSettings {
     boolean mUseDefaultAvatar = false;
 
     private Handler mHandler;
-    private QuickSettingsBasicBatteryTile batteryTile;
+    private QuickSettingsTileView mBatteryTile;
+    private BatteryMeterView mBattery;
+    private BatteryCircleMeterView mCircleBattery;
     private int mBatteryStyle;
 
     public QuickSettings(Context context, QuickSettingsContainerView container) {
@@ -295,8 +301,11 @@ class QuickSettings {
     }
 
     private void setupQuickSettings() {
-        addTiles(mContainerView, false);
-        addTemporaryTiles(mContainerView);
+        // Setup the tiles that we are going to be showing (including the temporary ones)
+        LayoutInflater inflater = LayoutInflater.from(mContext);
+
+        addTiles(mContainerView, inflater, false);
+        addTemporaryTiles(mContainerView, inflater);
 
         queryForUserInformation();
         queryForSslCaCerts();
@@ -329,16 +338,17 @@ class QuickSettings {
     }
     
     public void updateBattery() {
-        if (batteryTile == null || mModel == null) {
+        if (mBattery == null || mModel == null) {
             return;
         }
         mBatteryStyle = Settings.System.getInt(mContext.getContentResolver(),
                 Settings.System.STATUS_BAR_BATTERY_STYLE, 0);
-        batteryTile.updateBatterySettings();
+        mCircleBattery.updateSettings();
+        mBattery.updateSettings();
         mModel.refreshBatteryTile();
     }
 
-    private void addTiles(ViewGroup parent, boolean addMissing) {
+    private void addTiles(ViewGroup parent, LayoutInflater inflater, boolean addMissing) {
         // Load all the customizable tiles. If not yet modified by the user, load default ones.
         // After enabled tiles are loaded, proceed to load missing tiles and set them to View.GONE.
         // If all the tiles were deleted, they are still loaded, but their visibility is changed
@@ -549,10 +559,8 @@ class QuickSettings {
                             @Override
                             public boolean onLongClick(View v) {
                                 collapsePanels();
-                                Intent intent = new Intent();
-                                intent.setComponent(new ComponentName("com.android.settings",
-                                        "com.android.settings.Settings$DataUsageSummaryActivity"));
-                                startSettingsActivity(intent);
+                                startSettingsActivity(
+                                        android.provider.Settings.ACTION_DATA_ROAMING_SETTINGS);
                                 return true; // Consume click
                             }
                         });
@@ -567,7 +575,7 @@ class QuickSettings {
                                 if (rssiState.dataTypeIconId > 0) {
                                     rssiTile.setFrontImageOverlayResource(rssiState.dataTypeIconId);
                                 } else {
-                                    rssiTile.setFrontImageOverlayDrawable(null);
+                                    rssiTile.setFrontImageOverlayResource(R.drawable.ic_qs_signal_data_off);
                                 }
 
                                 setActivity(view, rssiState);
@@ -662,17 +670,23 @@ class QuickSettings {
                         if(addMissing) rotationLockTile.setVisibility(View.GONE);
                     }
                 } else if(Tile.BATTERY.toString().equals(tile.toString())) { // Battery tile
-                    batteryTile = new QuickSettingsBasicBatteryTile(mContext);
-                    batteryTile.setTileId(Tile.BATTERY);
+                    mBatteryTile = (QuickSettingsTileView)
+                            inflater.inflate(R.layout.quick_settings_tile, parent, false);
+                    mBatteryTile.setTileId(Tile.BATTERY);
+                    mBatteryTile.setContent(R.layout.quick_settings_tile_battery, inflater);
+                    mBattery = (BatteryMeterView) mBatteryTile.findViewById(R.id.image);
+                    mBattery.setVisibility(View.GONE);
+                    mCircleBattery = (BatteryCircleMeterView)
+                            mBatteryTile.findViewById(R.id.circle_battery);
                     updateBattery();
-                    batteryTile.setOnClickListener(new View.OnClickListener() {
+                    mBatteryTile.setOnClickListener(new View.OnClickListener() {
                         @Override
                         public void onClick(View v) {
                             collapsePanels();
                             startSettingsActivity(Intent.ACTION_POWER_USAGE_SUMMARY);
                         }
                     });
-                    mModel.addBatteryTile(batteryTile, new QuickSettingsModel.RefreshCallback() {
+                    mModel.addBatteryTile(mBatteryTile, new QuickSettingsModel.RefreshCallback() {
                         @Override
                         public void refreshView(QuickSettingsTileView unused, State state) {
                             QuickSettingsModel.BatteryState batteryState =
@@ -694,13 +708,14 @@ class QuickSettings {
                                         : mContext.getString(R.string.quick_settings_battery_discharging);
                                 }
                             }
-                            batteryTile.setText(t);
-                            batteryTile.setContentDescription(mContext.getString(
-                                    R.string.accessibility_quick_settings_battery, t));
+                            ((TextView)mBatteryTile.findViewById(R.id.text)).setText(t);
+                            mBatteryTile.setContentDescription(
+                                    mContext.getString(
+                                            R.string.accessibility_quick_settings_battery, t));
                         }
                     });
-                    parent.addView(batteryTile);
-                    if(addMissing) batteryTile.setVisibility(View.GONE);
+                    parent.addView(mBatteryTile);
+                    if(addMissing) mBatteryTile.setVisibility(View.GONE);
                 } else if(Tile.AIRPLANE.toString().equals(tile.toString())) { // Airplane Mode tile
                     final QuickSettingsBasicTile airplaneTile
                             = new QuickSettingsBasicTile(mContext);
@@ -884,47 +899,23 @@ class QuickSettings {
                     parent.addView(locationTile);
                     if(addMissing) locationTile.setVisibility(View.GONE);
                 } else if(Tile.IMMERSIVE.toString().equals(tile.toString())) { // Immersive mode tile
-                    final QuickSettingsDualBasicTile immersiveTile
-                            = new QuickSettingsDualBasicTile(mContext);
-                    immersiveTile.setDefaultContent();
+                    final QuickSettingsBasicTile immersiveTile
+                            = new QuickSettingsBasicTile(mContext);
                     immersiveTile.setTileId(Tile.IMMERSIVE);
-                    // Front side (Toggles global immersive state On/Off)
-                    immersiveTile.setFrontImageResource(R.drawable.ic_qs_immersive_global_off);
-                    immersiveTile.setFrontTextResource(R.string.quick_settings_immersive_global_off_label);
-                    immersiveTile.setFrontOnClickListener(new View.OnClickListener() {
+                    immersiveTile.setImageResource(R.drawable.ic_qs_immersive_off);
+                    immersiveTile.setTextResource(R.string.quick_settings_immersive_mode_off_label);
+                    immersiveTile.setOnClickListener(new View.OnClickListener() {
                         @Override
                         public void onClick(View v) {
-                            mModel.switchImmersiveGlobal();
-                            mModel.refreshImmersiveGlobalTile();
+                            mModel.switchImmersiveModeStyles();
+                            mModel.refreshImmersiveTile();
                         }
                     });
-                    mModel.addImmersiveGlobalTile(immersiveTile.getFront(), new QuickSettingsModel.RefreshCallback() {
+                    mModel.addImmersiveTile(immersiveTile, new QuickSettingsModel.RefreshCallback() {
                         @Override
                         public void refreshView(QuickSettingsTileView unused, State state) {
-                            immersiveTile.setFrontImageResource(state.iconId);
-                            immersiveTile.setFrontText(state.label);
-                        }
-                    });
-                    // Back side (Toggles active immersive modes if global is on)
-                    immersiveTile.setBackImageResource(R.drawable.ic_qs_immersive_off);
-                    immersiveTile.setBackTextResource(R.string.quick_settings_immersive_mode_off_label);
-                    immersiveTile.setBackOnClickListener(new View.OnClickListener() {
-                        @Override
-                        public void onClick(View v) {
-                            // instead of just returning, assume user wants to turn on immersive
-                            if(mModel.getImmersiveMode() == 0) {
-                                immersiveTile.swapTiles(true);
-                                return;
-                            }
-                            mModel.switchImmersiveMode();
-                            mModel.refreshImmersiveModeTile();
-                        }
-                    });
-                    mModel.addImmersiveModeTile(immersiveTile.getBack(), new QuickSettingsModel.RefreshCallback() {
-                        @Override
-                        public void refreshView(QuickSettingsTileView unused, State state) {
-                            immersiveTile.setBackImageResource(state.iconId);
-                            immersiveTile.setBackText(state.label);
+                            immersiveTile.setImageResource(state.iconId);
+                            immersiveTile.setText(state.label);
                         }
                     });
                     parent.addView(immersiveTile);
@@ -983,12 +974,13 @@ class QuickSettings {
                         @Override
                         public boolean onLongClick(View v) {
                             collapsePanels();
-                            Intent intent = new Intent(Intent.ACTION_POWERMENU);
-                            mContext.sendBroadcast(intent);
+                            startSettingsActivity(
+                                    android.provider.Settings.ACTION_DISPLAY_SETTINGS);
                             return true; // Consume click
                         }
                     });
                     // Back side (Toggle screen off timeout)
+                    sleepTile.setBackImageResource(R.drawable.ic_qs_sleep_time);
                     mModel.addSleepTimeTile(sleepTile.getBack(), new QuickSettingsModel.RefreshCallback() {
                         @Override
                         public void refreshView(QuickSettingsTileView view, State state) {
@@ -1001,10 +993,10 @@ class QuickSettings {
                 }
             }
         }
-        if(!addMissing) addTiles(parent, true);
+        if(!addMissing) addTiles(parent, inflater, true);
     }
 
-    private void addTemporaryTiles(final ViewGroup parent) {
+    private void addTemporaryTiles(final ViewGroup parent, final LayoutInflater inflater) {
         // Alarm tile
         final QuickSettingsBasicTile alarmTile
                 = new QuickSettingsBasicTile(mContext);

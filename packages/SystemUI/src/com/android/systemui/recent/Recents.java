@@ -21,7 +21,6 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.content.res.Resources;
-import android.database.ContentObserver;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
@@ -43,13 +42,18 @@ public class Recents extends SystemUI implements RecentsComponent {
     private static final String TAG = "Recents";
     private static final boolean DEBUG = false;
 
+    private boolean isImmersiveModeOn() {
+        return Settings.System.getInt(mContext.getContentResolver(),
+                    Settings.System.IMMERSIVE_MODE, 0) == 1;
+    }
+
     @Override
     public void start() {
         putComponent(RecentsComponent.class, this);
     }
 
     @Override
-    public void toggleRecents(Display display, int layoutDirection, View statusBarView, int mImmersiveModeStyle) {
+    public void toggleRecents(Display display, int layoutDirection, View statusBarView) {
         if (DEBUG) Log.d(TAG, "toggle recents panel");
         try {
             TaskDescription firstTask = RecentTasksLoader.getInstance(mContext).getFirstTask();
@@ -101,7 +105,7 @@ public class Recents extends SystemUI implements RecentsComponent {
 
 
                 DisplayMetrics dm = new DisplayMetrics();
-                if (mImmersiveModeStyle == 1) {
+                if (isImmersiveModeOn()) {
                     display.getRealMetrics(dm);
                 } else {
                     display.getMetrics(dm);
@@ -159,7 +163,7 @@ public class Recents extends SystemUI implements RecentsComponent {
                     float statusBarHeight = res.getDimensionPixelSize(
                             com.android.internal.R.dimen.status_bar_height);
                     float recentsItemTopPadding = statusBarHeight;
-                    if (mImmersiveModeStyle == 1 || mImmersiveModeStyle == 3) {
+                    if (isImmersiveModeOn()) {
                         statusBarHeight = 0;
                     }
 
