@@ -233,9 +233,16 @@ public class KeyguardHostView extends KeyguardViewBase {
         // that are triggered by deleteAppWidgetId, which is why we're doing this
         int[] appWidgetIdsInKeyguardSettings = mLockPatternUtils.getAppWidgets();
         int[] appWidgetIdsBoundToHost = mAppWidgetHost.getAppWidgetIds();
+        int fallbackWidgetId = mLockPatternUtils.getFallbackAppWidgetId();
         for (int i = 0; i < appWidgetIdsBoundToHost.length; i++) {
             int appWidgetId = appWidgetIdsBoundToHost[i];
             if (!contains(appWidgetIdsInKeyguardSettings, appWidgetId)) {
+                if (appWidgetId == fallbackWidgetId) {
+                    // Reset fallback widget id in the event that widgets have been
+                    // enabled, and fallback widget is being deleted
+                    mLockPatternUtils.writeFallbackAppWidgetId(
+                            AppWidgetManager.INVALID_APPWIDGET_ID);
+                }
                 Log.d(TAG, "Found a appWidgetId that's not being used by keyguard, deleting id "
                         + appWidgetId);
                 mAppWidgetHost.deleteAppWidgetId(appWidgetId);
@@ -993,14 +1000,11 @@ public class KeyguardHostView extends KeyguardViewBase {
 
         // Enter full screen mode if we're in SIM or Account screen
         boolean fullScreenEnabled = getResources().getBoolean(R.bool.kg_sim_puk_account_full_screen);
-        boolean isSimOrAccount = securityMode == SecurityMode.SimPin
-                || securityMode == SecurityMode.SimPuk
-                || securityMode == SecurityMode.Account;
         mAppWidgetContainer.setVisibility(
-                isSimOrAccount && fullScreenEnabled ? View.GONE : View.VISIBLE);
+                isSimOrAccount(securityMode, false) && fullScreenEnabled ? View.GONE : View.VISIBLE);
 
         // Don't show camera or search in navbar when SIM or Account screen is showing
-        setSystemUiVisibility(isSimOrAccount ?
+        setSystemUiVisibility(isSimOrAccount(securityMode, false) ?
                 (getSystemUiVisibility() | View.STATUS_BAR_DISABLE_SEARCH)
                 : (getSystemUiVisibility() & ~View.STATUS_BAR_DISABLE_SEARCH));
 
@@ -1117,7 +1121,8 @@ public class KeyguardHostView extends KeyguardViewBase {
     }
 
     private void minimizeChallengeIfDesired() {
-        if (mSlidingChallengeLayout == null) {
+        if (mSlidingChallengeLayout == null
+                || isSimOrAccount(mCurrentSecuritySelection, true)) {
             return;
         }
 
@@ -1127,6 +1132,15 @@ public class KeyguardHostView extends KeyguardViewBase {
         if (setting == 1) {
             mSlidingChallengeLayout.showChallenge(false);
         }
+    }
+
+    private boolean isSimOrAccount(SecurityMode securityMode, boolean isInvalidCheck) {
+        final boolean isSimOrAccount = securityMode == SecurityMode.SimPin
+                || securityMode == SecurityMode.SimPuk
+                || securityMode == SecurityMode.Account;
+        return isInvalidCheck
+                ? isSimOrAccount || securityMode == SecurityMode.Invalid
+                : isSimOrAccount;
     }
 
     private int getSecurityViewIdForMode(SecurityMode securityMode) {
@@ -1298,7 +1312,6 @@ public class KeyguardHostView extends KeyguardViewBase {
 
     private void addWidgetsFromSettings() {
         if (mSafeModeEnabled || widgetsDisabled()) {
-            addDefaultStatusWidget(0);
             return;
         }
 
