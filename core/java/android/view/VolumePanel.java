@@ -41,6 +41,7 @@ import android.os.Message;
 import android.os.Vibrator;
 import android.provider.Settings;
 import android.util.Log;
+import android.util.SettingConfirmationHelper;
 import android.view.WindowManager.LayoutParams;
 import android.widget.ImageView;
 import android.widget.SeekBar;
@@ -327,7 +328,6 @@ public class VolumePanel extends Handler implements OnSeekBarChangeListener, Vie
         lp.type = LayoutParams.TYPE_VOLUME_OVERLAY;
         lp.width = LayoutParams.WRAP_CONTENT;
         lp.height = LayoutParams.WRAP_CONTENT;
-        lp.privateFlags |= LayoutParams.PRIVATE_FLAG_FORCE_SHOW_NAV_BAR;
         window.setAttributes(lp);
         window.addFlags(LayoutParams.FLAG_NOT_FOCUSABLE | LayoutParams.FLAG_NOT_TOUCH_MODAL
                 | LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH);
@@ -929,6 +929,17 @@ public class VolumePanel extends Handler implements OnSeekBarChangeListener, Vie
                                             new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int which) {
                                 mAudioService.disableSafeMediaVolume();
+                                SettingConfirmationHelper helper =
+                                        new SettingConfirmationHelper(mContext);
+                                helper.showConfirmationDialogForSetting(
+                                        mContext.getResources()
+                                                .getString(R.string.safe_headset_warning_title),
+                                        mContext.getResources()
+                                                .getString(R.string.safe_headset_warning_message),
+                                        mContext.getResources()
+                                                .getDrawable(
+                                                        R.drawable.safe_headset_volume_warning),
+                                        Settings.System.SAFE_HEADSET_VOLUME);
                             }
                         })
                         .setNegativeButton(com.android.internal.R.string.no, null)
