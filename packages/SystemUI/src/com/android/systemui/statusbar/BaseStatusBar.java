@@ -198,6 +198,7 @@ public abstract class BaseStatusBar extends SystemUI implements
 
     public Handler getHandler() {
         return mHandler;
+    }
 
     public Ticker getTicker() {
         return mTicker;
