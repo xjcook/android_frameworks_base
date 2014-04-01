@@ -122,23 +122,25 @@ public class RecentsActivity extends Activity {
     }
 
     public static boolean forceOpaqueBackground(Context context) {
-        return WallpaperManager.getInstance(context).getWallpaperInfo() != null;
+        return WallpaperManager.getInstance(context).getWallpaperInfo() != null
+                && !ActivityManager.isHighEndGfx();
     }
 
     public void setRecentHints(boolean show) {
+        if (mNavigationCallbacks == null || mNavigationCallbacks.isEmpty()) return;
         for(NavigationCallback callback : mNavigationCallbacks) {
             // Check if we need to enable alternate drawable for recent apps key
             if(callback == null) return; // Multiuser is not allowed
             int navigationHints = callback.getNavigationIconHints();
             callback.setNavigationIconHints(NavigationBarView.NAVBAR_RECENTS_HINT,
                     show ? (navigationHints | StatusBarManager.NAVIGATION_HINT_RECENT_ALT)
-                            : (navigationHints & ~StatusBarManager.NAVIGATION_HINT_RECENT_ALT), true);
+                         : (navigationHints & ~StatusBarManager.NAVIGATION_HINT_RECENT_ALT), true);
         }
     }
 
     @Override
     public void onStart() {
-        // Hide wallpaper if it's not a static image
+        // Hide wallpaper if it's not a static image and device is low-end
         if (forceOpaqueBackground(this)) {
             updateWallpaperVisibility(false);
         } else {
