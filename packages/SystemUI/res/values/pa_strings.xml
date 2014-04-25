@@ -112,4 +112,9 @@
     <string name="halo_tutorial1">This is HALO</string>
     <string name="halo_tutorial2">Move me: double tap &amp; drag</string>
     <string name="halo_tutorial3">Browse tasks: Horizontal drag</string>
+    
+    <!-- Switch apps -->
+    <string name="enable_switch_apps_title">Switch apps</string>
+    <string name="enable_switch_apps_message">Quickly launch prior app when long pressing recents?</string>
+    <string name="recents_switch">@string/enable_switch_apps_title</string>
 </resources>
