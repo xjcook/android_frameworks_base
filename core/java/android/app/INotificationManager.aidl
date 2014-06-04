@@ -52,4 +52,11 @@ interface INotificationManager
     void setFloatingModeBlacklistStatus(String pkg, boolean status);
     boolean isPackageAllowedForPeek(String pkg);
     boolean isPackageAllowedForFloatingMode(String pkg);
+
+    void setHaloPolicyBlack(boolean state);
+    void setHaloStatus(String pkg, boolean status);
+    void setHaloBlacklistStatus(String pkg, boolean status);
+    void setHaloWhitelistStatus(String pkg, boolean status);
+    boolean isHaloPolicyBlack();
+    boolean isPackageAllowedForHalo(String pkg);
 }
